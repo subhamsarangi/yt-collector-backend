@@ -1,4 +1,5 @@
 import os
+import traceback
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from auth import verify_token
@@ -62,7 +63,9 @@ def channel_info(req: ChannelInfoRequest):
     try:
         info = ytdlp.fetch_channel_info(req.channel_url)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Channel info failed: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Channel info failed: {traceback.format_exc()}"
+        )
     return info
 
 
