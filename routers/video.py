@@ -29,7 +29,8 @@ def process_video(req: VideoRequest):
     try:
         result = ytdlp.fetch_video(req.youtube_id)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"yt-dlp failed: {e}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail="yt-dlp failed")
 
     # Upload thumbnail
     with open(result["thumbnail_path"], "rb") as f:
