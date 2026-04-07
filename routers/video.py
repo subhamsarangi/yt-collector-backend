@@ -15,6 +15,10 @@ class ChannelScanRequest(BaseModel):
     channel_url: str
 
 
+class ChannelInfoRequest(BaseModel):
+    channel_url: str
+
+
 class SearchRequest(BaseModel):
     topic: str
 
@@ -51,6 +55,15 @@ def scan_channel(req: ChannelScanRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Channel scan failed: {e}")
     return {"entries": entries}
+
+
+@router.post("/channel/info")
+def channel_info(req: ChannelInfoRequest):
+    try:
+        info = ytdlp.fetch_channel_info(req.channel_url)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Channel info failed: {e}")
+    return info
 
 
 @router.post("/search")

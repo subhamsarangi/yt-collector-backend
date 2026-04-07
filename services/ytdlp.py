@@ -41,6 +41,25 @@ def fetch_video(youtube_id: str) -> dict:
     }
 
 
+def fetch_channel_info(channel_url: str) -> dict:
+    """Return channel name and category/topic from its URL."""
+    cmd = [
+        "yt-dlp",
+        "--flat-playlist",
+        "--dump-single-json",
+        "--playlist-items",
+        "0",  # fetch playlist metadata only, no entries
+        "--no-download",
+        channel_url,
+    ]
+    result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+    data = json.loads(result.stdout)
+    return {
+        "name": data.get("channel") or data.get("uploader") or data.get("title", ""),
+        "domain": data.get("tags", [None])[0] or "",  # first tag as a domain hint
+    }
+
+
 def scan_channel(channel_url: str) -> list[dict]:
     """Return videos published in the last 24 hours from a channel."""
     since = (datetime.now(timezone.utc) - timedelta(hours=24)).strftime("%Y%m%d")
