@@ -1,8 +1,20 @@
-import os
-from weasyprint import HTML
+try:
+    from weasyprint import HTML
+
+    WEASYPRINT_AVAILABLE = True
+except Exception:
+    WEASYPRINT_AVAILABLE = False
+
+
+def _require_weasyprint():
+    if not WEASYPRINT_AVAILABLE:
+        raise RuntimeError(
+            "WeasyPrint is not available on this platform. PDF generation only works on the OCI server."
+        )
 
 
 def render_video_pdf(video: dict) -> bytes:
+    _require_weasyprint()
     transcript_lines = (
         video.get("transcript") or "No transcript available."
     ).splitlines()
@@ -26,6 +38,7 @@ def render_video_pdf(video: dict) -> bytes:
 
 
 def render_topic_pdf(topic: dict, videos: list[dict]) -> bytes:
+    _require_weasyprint()
     sections = ""
     for v in videos:
         transcript_lines = (v.get("transcript") or "").splitlines()
