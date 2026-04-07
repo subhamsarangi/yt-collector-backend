@@ -63,9 +63,8 @@ def channel_info(req: ChannelInfoRequest):
     try:
         info = ytdlp.fetch_channel_info(req.channel_url)
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Channel info failed: {traceback.format_exc()}"
-        )
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail="Channel info failed")
     return info
 
 
