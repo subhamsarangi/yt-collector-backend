@@ -30,7 +30,10 @@ def fetch_video(youtube_id: str) -> dict:
         "--no-playlist",
         url,
     ]
-    subprocess.run(cmd, check=True, capture_output=True)
+    try:
+        subprocess.run(cmd, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"yt-dlp failed:\nstdout: {e.stdout}\nstderr: {e.stderr}")
 
     with open(f"{tmpdir}/{youtube_id}.info.json") as f:
         info = json.load(f)
