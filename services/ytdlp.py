@@ -57,6 +57,11 @@ def fetch_channel_info(channel_url: str) -> dict:
     data = json.loads(result.stdout)
     return {
         "name": data.get("channel") or data.get("uploader") or data.get("title", ""),
+        "thumbnail_url": (
+            data.get("thumbnails", [{}])[-1].get("url", "")
+            if data.get("thumbnails")
+            else ""
+        ),
     }
 
 
