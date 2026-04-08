@@ -12,6 +12,7 @@ def fetch_video(youtube_id: str) -> dict:
     tmpdir = tempfile.mkdtemp()
 
     # Download metadata + thumbnail + audio
+    cookie_file = os.path.join(os.path.dirname(__file__), "..", "cookies.txt")
     cmd = [
         "yt-dlp",
         "--write-info-json",
@@ -22,14 +23,16 @@ def fetch_video(youtube_id: str) -> dict:
         "--audio-format",
         "mp3",
         "--audio-quality",
-        "5",  # ~128kbps, good enough for Whisper
+        "5",
         "--postprocessor-args",
-        "ffmpeg:-ar 16000 -ac 1",  # 16kHz mono
+        "ffmpeg:-ar 16000 -ac 1",
         "-o",
         f"{tmpdir}/%(id)s.%(ext)s",
         "--no-playlist",
-        url,
     ]
+    if os.path.exists(cookie_file):
+        cmd += ["--cookies", os.path.abspath(cookie_file)]
+    cmd.append(url)
     try:
         subprocess.run(cmd, check=True, capture_output=True, text=True)
     except subprocess.CalledProcessError as e:
