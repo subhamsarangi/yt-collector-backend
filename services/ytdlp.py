@@ -99,11 +99,11 @@ def scan_channel(channel_url: str) -> list[dict]:
     return data.get("entries", [])
 
 
-def search_topic(topic: str, max_results: int = 5) -> list[dict]:
-    """Search YouTube and return top N video results for a topic."""
+def search_topic(topic: str, max_results: int = 5, language: str = "en") -> list[dict]:
+    """Search YouTube and return top N video results for a topic, filtered by language."""
     cmd = [
         "yt-dlp",
-        f"ytsearch{max_results}:{topic}",
+        f"ytsearch{max_results * 3}:{topic}",  # fetch more to account for filtering
         "--dump-single-json",
         "--flat-playlist",
         "--no-download",
@@ -111,11 +111,11 @@ def search_topic(topic: str, max_results: int = 5) -> list[dict]:
     result = subprocess.run(cmd, check=True, capture_output=True, text=True)
     data = json.loads(result.stdout)
     entries = data.get("entries", [])
-    # Filter to valid video entries only (11-char IDs, type video)
-    return [
-        e
-        for e in entries
+    filtered = [
+        e for e in entries
         if e.get("id")
         and len(e["id"]) == 11
         and e.get("ie_key", "").lower() != "youtubetab"
+        and (e.get("language") in (language, None, ""))
     ]
+    return filtered[:max_results]
