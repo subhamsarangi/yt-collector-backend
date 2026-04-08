@@ -41,7 +41,15 @@ def fetch_video(youtube_id: str) -> dict:
         raise RuntimeError(f"yt-dlp failed:\nstdout: {e.stdout}\nstderr: {e.stderr}")
 
     with open(f"{tmpdir}/{youtube_id}.info.json") as f:
-        info = json.load(f)
+        raw = json.load(f)
+
+    # Keep only what we need — drop formats, thumbnails, subtitles, etc.
+    info = {k: raw.get(k) for k in [
+        "id", "title", "description", "upload_date", "channel", "channel_id",
+        "uploader", "uploader_url", "duration", "view_count", "like_count",
+        "comment_count", "tags", "categories", "chapters", "heatmap",
+        "webpage_url", "thumbnail",
+    ]}
 
     return {
         "metadata": info,
