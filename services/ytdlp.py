@@ -26,6 +26,8 @@ def fetch_video(youtube_id: str) -> dict:
         "5",
         "--postprocessor-args",
         "ffmpeg:-ar 16000 -ac 1",
+        "--js-runtimes",
+        "deno",
         "-o",
         f"{tmpdir}/%(id)s.%(ext)s",
         "--no-playlist",
