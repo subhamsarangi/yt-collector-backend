@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from auth import verify_token
-from services import ytdlp, r2, search as search_service
+from services import ytdlp, r2, search as search_service, summarize as summarize_service
 
 router = APIRouter(dependencies=[Depends(verify_token)])
 
@@ -25,7 +25,11 @@ class SearchRequest(BaseModel):
     topic: str
 
 
-@router.post("/video")
+class SummarizeRequest(BaseModel):
+    transcript: str
+
+
+
 def process_video(req: VideoRequest):
     try:
         result = ytdlp.fetch_video(req.youtube_id)
@@ -96,3 +100,13 @@ def search_enhanced_stream(req: SearchRequest):
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@router.post("/summarize")
+def summarize_transcript(req: SummarizeRequest):
+    try:
+        summary = summarize_service.summarize_transcript(req.transcript)
+    except Exception as e:
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Summarization failed: {e}")
+    return {"summary": summary}
