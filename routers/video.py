@@ -30,6 +30,7 @@ class SummarizeRequest(BaseModel):
 
 
 
+@router.post("/video")
 def process_video(req: VideoRequest):
     try:
         result = ytdlp.fetch_video(req.youtube_id)
