@@ -3,7 +3,7 @@ import traceback
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from auth import verify_token
-from services import ytdlp, r2
+from services import ytdlp, r2, search as search_service
 
 router = APIRouter(dependencies=[Depends(verify_token)])
 
@@ -75,4 +75,14 @@ def search_topic(req: SearchRequest):
         results = ytdlp.search_topic(req.topic)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Search failed: {e}")
+    return {"results": results}
+
+
+@router.post("/search/enhanced")
+def search_enhanced(req: SearchRequest):
+    try:
+        results = search_service.search_enhanced(req.topic)
+    except Exception as e:
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Enhanced search failed: {e}")
     return {"results": results}
