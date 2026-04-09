@@ -16,10 +16,19 @@ def expand_queries(topic: str) -> list[str]:
             {
                 "role": "system",
                 "content": (
-                    "You generate YouTube search query variations. "
-                    "Return a JSON array of 5 short search queries (strings only, no explanation). "
-                    "Queries should cover different angles: tutorials, explainers, news, deep dives, comparisons. "
-                    "Keep each query under 8 words."
+                    "You generate YouTube search query variations for a given topic.\n\n"
+                    "Rules:\n"
+                    "- Every query MUST contain ALL the words from the original topic, verbatim.\n"
+                    "- Only add words to vary the angle — never remove or replace any original words.\n"
+                    "- Add angle words that actually appear in real YouTube titles: tutorial, guide, demo, review, tips, tricks, how to, walkthrough, beginners, deep dive, setup, overview, first look, explained.\n"
+                    "- Never include years, numbers, or version numbers.\n"
+                    "- Keep each query under 8 words.\n"
+                    "- Return a JSON array of 5 strings, no explanation.\n\n"
+                    "Example — topic: \"gemini notebooklm\"\n"
+                    "BAD:  [\"Gemini Explained\", \"Gemini News\", \"NotebookLM review hands on\"]  <- drops words from the original topic\n"
+                    "GOOD: [\"gemini notebooklm tutorial\", \"gemini notebooklm deep dive\", "
+                    "\"gemini notebooklm insane\", \"gemini notebooklm guide\", "
+                    "\"gemini notebooklm tips tricks\"]"
                 ),
             },
             {"role": "user", "content": f"Topic: {topic}"},
