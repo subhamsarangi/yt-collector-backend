@@ -17,7 +17,7 @@ def get_supabase():
 @router.post("/pdf/video/{video_id}")
 def pdf_video(video_id: str):
     sb = get_supabase()
-    result = sb.table("videos").select("*").eq("id", video_id).single().execute()
+    result = sb.table("videos").select("*, channels(name, url)").eq("id", video_id).single().execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Video not found")
 
@@ -37,7 +37,7 @@ def pdf_topic(topic_id: str):
     if not topic.data:
         raise HTTPException(status_code=404, detail="Topic not found")
 
-    videos = sb.table("videos").select("*").eq("topic_id", topic_id).execute()
+    videos = sb.table("videos").select("*, channels(name, url)").eq("topic_id", topic_id).execute()
 
     pdf_bytes = pdf_service.render_topic_pdf(topic.data, videos.data or [])
     return Response(
