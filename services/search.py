@@ -2,6 +2,7 @@ import os
 import json
 import concurrent.futures
 from datetime import datetime, timezone
+from typing import Generator
 from groq import Groq
 from services import ytdlp
 
@@ -86,3 +87,70 @@ def search_enhanced(topic: str, top_n: int = 5) -> list[dict]:
     # Score and sort
     unique.sort(key=score_video, reverse=True)
     return unique[:top_n]
+
+
+def search_enhanced_stream(topic: str, top_n: int = 5) -> Generator[str, None, None]:
+    """
+    Same as search_enhanced but yields SSE-formatted strings so the caller
+    can stream progress back to the client.
+    """
+
+    def event(data: dict) -> str:
+        return f"data: {json.dumps(data)}\n\n"
+
+    # Step 1 — generate query variations
+    yield event({"step": "Generating search query variations with AI..."})
+    queries = expand_queries(topic)
+    yield event({"queries": queries})
+
+    # Step 2 — parallel YouTube searches
+    yield event(
+        {"step": f"Searching YouTube with {len(queries)} queries in parallel..."}
+    )
+
+    all_entries: list[dict] = []
+    completed = 0
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {executor.submit(ytdlp.search_topic, q, 8): q for q in queries}
+        for future in concurrent.futures.as_completed(futures):
+            q = futures[future]
+            try:
+                results = future.result()
+                all_entries.extend(results)
+                completed += 1
+                yield event(
+                    {
+                        "query_done": q,
+                        "hits": len(results),
+                        "completed": completed,
+                        "total": len(queries),
+                    }
+                )
+            except Exception as e:
+                completed += 1
+                yield event(
+                    {
+                        "query_failed": q,
+                        "error": str(e),
+                        "completed": completed,
+                        "total": len(queries),
+                    }
+                )
+
+    # Step 3 — deduplicate
+    yield event({"step": f"Deduplicating {len(all_entries)} results..."})
+    seen: set[str] = set()
+    unique: list[dict] = []
+    for entry in all_entries:
+        vid_id = entry.get("id")
+        if vid_id and vid_id not in seen:
+            seen.add(vid_id)
+            unique.append(entry)
+
+    # Step 4 — score and return
+    unique.sort(key=score_video, reverse=True)
+    top = unique[:top_n]
+    yield event(
+        {"step": f"Ranked results. Returning top {len(top)} videos.", "results": top}
+    )

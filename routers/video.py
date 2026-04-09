@@ -1,6 +1,7 @@
 import os
 import traceback
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from auth import verify_token
 from services import ytdlp, r2, search as search_service
@@ -86,3 +87,12 @@ def search_enhanced(req: SearchRequest):
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Enhanced search failed: {e}")
     return {"results": results}
+
+
+@router.post("/search/enhanced/stream")
+def search_enhanced_stream(req: SearchRequest):
+    return StreamingResponse(
+        search_service.search_enhanced_stream(req.topic),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
