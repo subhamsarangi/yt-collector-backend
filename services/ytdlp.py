@@ -23,7 +23,7 @@ def fetch_video(youtube_id: str) -> dict:
         "--audio-format",
         "mp3",
         "--audio-quality",
-        "5",
+        "9",  # lowest quality ~48kbps — sufficient for Whisper, keeps files small
         "--postprocessor-args",
         "ffmpeg:-ar 16000 -ac 1",
         "--js-runtimes",
@@ -44,12 +44,29 @@ def fetch_video(youtube_id: str) -> dict:
         raw = json.load(f)
 
     # Keep only what we need — drop formats, thumbnails, subtitles, etc.
-    info = {k: raw.get(k) for k in [
-        "id", "title", "description", "upload_date", "channel", "channel_id",
-        "uploader", "uploader_url", "duration", "view_count", "like_count",
-        "comment_count", "tags", "categories", "chapters", "heatmap",
-        "webpage_url", "thumbnail",
-    ]}
+    info = {
+        k: raw.get(k)
+        for k in [
+            "id",
+            "title",
+            "description",
+            "upload_date",
+            "channel",
+            "channel_id",
+            "uploader",
+            "uploader_url",
+            "duration",
+            "view_count",
+            "like_count",
+            "comment_count",
+            "tags",
+            "categories",
+            "chapters",
+            "heatmap",
+            "webpage_url",
+            "thumbnail",
+        ]
+    }
 
     return {
         "metadata": info,
@@ -112,7 +129,8 @@ def search_topic(topic: str, max_results: int = 5, language: str = "en") -> list
     data = json.loads(result.stdout)
     entries = data.get("entries", [])
     filtered = [
-        e for e in entries
+        e
+        for e in entries
         if e.get("id")
         and len(e["id"]) == 11
         and e.get("ie_key", "").lower() != "youtubetab"
