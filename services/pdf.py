@@ -25,6 +25,13 @@ def render_video_pdf(video: dict) -> bytes:
     channel = video.get("channels") or {}
     channel_name = channel.get("name") if isinstance(channel, dict) else None
     channel_url = channel.get("url") if isinstance(channel, dict) else None
+    # Fall back to yt-dlp metadata for topic-sourced videos
+    if not channel_name:
+        channel_name = (video.get("metadata") or {}).get("channel") or (video.get("metadata") or {}).get("uploader")
+    if not channel_url:
+        channel_url = (video.get("metadata") or {}).get("uploader_url") or (video.get("metadata") or {}).get("webpage_url")
+        # webpage_url is the video URL, not the channel — only use uploader_url
+        channel_url = (video.get("metadata") or {}).get("uploader_url") or None
     channel_html = ""
     if channel_name:
         if channel_url:
@@ -59,6 +66,10 @@ def render_topic_pdf(topic: dict, videos: list[dict]) -> bytes:
         channel = v.get("channels") or {}
         channel_name = channel.get("name") if isinstance(channel, dict) else None
         channel_url = channel.get("url") if isinstance(channel, dict) else None
+        if not channel_name:
+            channel_name = (v.get("metadata") or {}).get("channel") or (v.get("metadata") or {}).get("uploader")
+        if not channel_url:
+            channel_url = (v.get("metadata") or {}).get("uploader_url") or None
         channel_html = ""
         if channel_name:
             if channel_url:
