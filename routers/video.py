@@ -1,6 +1,6 @@
 import os
 import traceback
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from auth import verify_token
@@ -139,3 +139,13 @@ def summarize_transcript(req: SummarizeRequest):
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Summarization failed: {e}")
     return {"summary": summary}
+
+
+@router.post("/cookies")
+async def upload_cookies(file: UploadFile = File(...)):
+    """Replace the cookies.txt file used by yt-dlp."""
+    cookie_path = os.path.join(os.path.dirname(__file__), "..", "cookies.txt")
+    content = await file.read()
+    with open(cookie_path, "wb") as f:
+        f.write(content)
+    return {"ok": True, "bytes": len(content)}
