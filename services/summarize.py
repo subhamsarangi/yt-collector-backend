@@ -28,7 +28,7 @@ def _chunk_transcript(transcript: str) -> list[str]:
 def _summarize_chunk(client: Groq, chunk: str, part: int, total: int) -> str:
     part_note = f" (part {part} of {total})" if total > 1 else ""
     response = client.chat.completions.create(
-        model="qwen/qwen3-32b",
+        model="moonshotai/kimi-k2-instruct",
         messages=[
             {
                 "role": "system",
@@ -46,16 +46,19 @@ def _summarize_chunk(client: Groq, chunk: str, part: int, total: int) -> str:
             },
         ],
         temperature=0.3,
-        max_tokens=1024,
+        max_tokens=2048,
     )
-    return response.choices[0].message.content.strip()
+    raw = response.choices[0].message.content.strip()
+    if "<think>" in raw:
+        raw = raw[raw.rfind("</think>") + len("</think>") :].strip()
+    return raw
 
 
 def _merge_summaries(client: Groq, summaries: list[str]) -> str:
     """Merge multiple chunk summaries into a single coherent bullet list."""
     combined = "\n\n".join(summaries)
     response = client.chat.completions.create(
-        model="qwen/qwen3-32b",
+        model="moonshotai/kimi-k2-instruct",
         messages=[
             {
                 "role": "system",
@@ -72,9 +75,12 @@ def _merge_summaries(client: Groq, summaries: list[str]) -> str:
             },
         ],
         temperature=0.3,
-        max_tokens=1024,
+        max_tokens=2048,
     )
-    return response.choices[0].message.content.strip()
+    raw = response.choices[0].message.content.strip()
+    if "<think>" in raw:
+        raw = raw[raw.rfind("</think>") + len("</think>") :].strip()
+    return raw
 
 
 def summarize_transcript(transcript: str) -> str:

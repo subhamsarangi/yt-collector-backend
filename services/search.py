@@ -36,9 +36,12 @@ def expand_queries(topic: str) -> list[str]:
             {"role": "user", "content": f"Topic: {topic}"},
         ],
         temperature=0.7,
-        max_tokens=200,
+        max_tokens=2048,
     )
     raw = response.choices[0].message.content.strip()
+    # Strip <think>...</think> block — let the model think, then extract the answer
+    if "<think>" in raw:
+        raw = raw[raw.rfind("</think>") + len("</think>") :].strip()
     # Extract JSON array from response
     start = raw.find("[")
     end = raw.rfind("]") + 1
