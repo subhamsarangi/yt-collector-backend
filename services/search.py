@@ -115,7 +115,7 @@ def search_enhanced_stream(topic: str, top_n: int = 5) -> Generator[str, None, N
     # Step 1 — generate query variations
     yield event({"step": "Generating search query variations with AI..."})
     queries = expand_queries(topic)
-    yield event({"queries": queries})
+    yield event({"queries": queries, "model": "qwen/qwen3-32b"})
 
     # Step 2 — parallel YouTube searches
     yield event(
