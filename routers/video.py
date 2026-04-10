@@ -64,10 +64,12 @@ def process_video_audio(req: VideoAudioRequest):
         raise HTTPException(status_code=500, detail=f"yt-dlp audio failed: {e}")
 
     with open(result["audio_path"], "rb") as f:
-        audio_url = r2.upload(f"audio/{req.youtube_id}.mp3", f.read(), "audio/mpeg")
+        data = f.read()
+    audio_url = r2.upload(f"audio/{req.youtube_id}.mp3", data, "audio/mpeg")
+    size_mb = round(len(data) / 1024 / 1024, 2)
     os.remove(result["audio_path"])
 
-    return {"youtube_id": req.youtube_id, "audio_url": audio_url}
+    return {"youtube_id": req.youtube_id, "audio_url": audio_url, "size_mb": size_mb}
 
 
 @router.post("/channel/scan")
