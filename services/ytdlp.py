@@ -179,7 +179,15 @@ def scan_channel(channel_url: str) -> list[dict]:
     ]
     result = subprocess.run(cmd, check=True, capture_output=True, text=True)
     data = json.loads(result.stdout)
-    return data.get("entries", [])
+    entries = data.get("entries", [])
+    # Filter to valid video IDs only (11 chars) — excludes channel IDs (UC..., 24 chars)
+    return [
+        e
+        for e in entries
+        if e.get("id")
+        and len(e["id"]) == 11
+        and e.get("ie_key", "").lower() != "youtubetab"
+    ]
 
 
 def search_topic(topic: str, max_results: int = 5, language: str = "en") -> list[dict]:
