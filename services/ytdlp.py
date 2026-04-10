@@ -70,12 +70,10 @@ def fetch_video(youtube_id: str) -> dict:
 
 def fetch_audio(youtube_id: str, duration_seconds: int = 0) -> dict:
     """
-    Download audio for a video.
-    If duration > CHUNK_THRESHOLD_SECS, splits into chunks using ffmpeg stream-copy
-    (no re-encode — fast and low RAM). Returns list of chunk file paths.
+    Download up to 38 minutes of audio for a video using --download-sections.
+    Always returns a single file — no chunking needed.
     """
-    CHUNK_THRESHOLD_SECS = 20 * 60  # 20 minutes
-    CHUNK_SIZE_SECS = 19 * 60  # 19-min chunks — safely under Groq 25MB limit
+    MAX_SECONDS = 38 * 60  # 2280s
 
     url = f"https://www.youtube.com/watch?v={youtube_id}"
     tmpdir = tempfile.mkdtemp()
@@ -84,6 +82,8 @@ def fetch_audio(youtube_id: str, duration_seconds: int = 0) -> dict:
     cookie_file = os.path.join(os.path.dirname(__file__), "..", "cookies.txt")
     cmd = [
         "yt-dlp",
+        "--download-sections",
+        f"*0-{MAX_SECONDS}",
         "-x",
         "--audio-format",
         "mp3",
@@ -107,38 +107,7 @@ def fetch_audio(youtube_id: str, duration_seconds: int = 0) -> dict:
             f"yt-dlp audio failed:\nstdout: {e.stdout}\nstderr: {e.stderr}"
         )
 
-    # If short enough, return as single chunk
-    if duration_seconds <= CHUNK_THRESHOLD_SECS:
-        return {"chunks": [{"path": audio_path, "offset": 0}], "chunked": False}
-
-    # Split into chunks using ffmpeg stream-copy (no re-encode)
-    chunks = []
-    offset = 0
-    chunk_index = 0
-    while offset < duration_seconds:
-        chunk_path = f"{tmpdir}/{youtube_id}_chunk{chunk_index:03d}.mp3"
-        split_cmd = [
-            "ffmpeg",
-            "-y",
-            "-ss",
-            str(offset),
-            "-t",
-            str(CHUNK_SIZE_SECS),
-            "-i",
-            audio_path,
-            "-c",
-            "copy",  # stream-copy — no re-encode, minimal RAM
-            chunk_path,
-        ]
-        subprocess.run(split_cmd, check=True, capture_output=True)
-        chunks.append({"path": chunk_path, "offset": offset})
-        offset += CHUNK_SIZE_SECS
-        chunk_index += 1
-
-    # Delete full audio immediately to free disk/RAM
-    os.remove(audio_path)
-
-    return {"chunks": chunks, "chunked": True}
+    return {"audio_path": audio_path}
 
 
 def fetch_channel_info(channel_url: str) -> dict:

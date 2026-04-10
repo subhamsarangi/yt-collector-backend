@@ -53,36 +53,21 @@ def process_video(req: VideoRequest):
 
 class VideoAudioRequest(BaseModel):
     youtube_id: str
-    duration: int = 0  # seconds — used to decide chunking
 
 
 @router.post("/video/audio")
 def process_video_audio(req: VideoAudioRequest):
     try:
-        result = ytdlp.fetch_audio(req.youtube_id, req.duration)
+        result = ytdlp.fetch_audio(req.youtube_id)
     except Exception as e:
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"yt-dlp audio failed: {e}")
 
-    chunk_urls = []
-    for chunk in result["chunks"]:
-        with open(chunk["path"], "rb") as f:
-            key = (
-                f"audio/{req.youtube_id}_chunk{len(chunk_urls):03d}.mp3"
-                if result["chunked"]
-                else f"audio/{req.youtube_id}.mp3"
-            )
-            url = r2.upload(key, f.read(), "audio/mpeg")
-        chunk_urls.append({"url": url, "offset": chunk["offset"]})
-        os.remove(chunk["path"])  # free disk immediately after upload
+    with open(result["audio_path"], "rb") as f:
+        audio_url = r2.upload(f"audio/{req.youtube_id}.mp3", f.read(), "audio/mpeg")
+    os.remove(result["audio_path"])
 
-    return {
-        "youtube_id": req.youtube_id,
-        "chunked": result["chunked"],
-        "chunks": chunk_urls,
-        # convenience for single-chunk case
-        "audio_url": chunk_urls[0]["url"] if not result["chunked"] else None,
-    }
+    return {"youtube_id": req.youtube_id, "audio_url": audio_url}
 
 
 @router.post("/channel/scan")
