@@ -16,10 +16,13 @@ def fetch_video(youtube_id: str) -> dict:
         "yt-dlp",
         "--write-info-json",
         "--write-thumbnail",
-        "--convert-thumbnails", "jpg",
-        "--skip-download",          # metadata + thumbnail only, no audio
-        "--js-runtimes", "deno",
-        "-o", f"{tmpdir}/%(id)s.%(ext)s",
+        "--convert-thumbnails",
+        "jpg",
+        "--skip-download",  # metadata + thumbnail only, no audio
+        "--js-runtimes",
+        "deno",
+        "-o",
+        f"{tmpdir}/%(id)s.%(ext)s",
         "--no-playlist",
     ]
     if os.path.exists(cookie_file):
@@ -28,7 +31,9 @@ def fetch_video(youtube_id: str) -> dict:
     try:
         subprocess.run(cmd, check=True, capture_output=True, text=True)
     except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"yt-dlp metadata failed:\nstdout: {e.stdout}\nstderr: {e.stderr}")
+        raise RuntimeError(
+            f"yt-dlp metadata failed:\nstdout: {e.stdout}\nstderr: {e.stderr}"
+        )
 
     with open(f"{tmpdir}/{youtube_id}.info.json") as f:
         raw = json.load(f)
@@ -36,11 +41,24 @@ def fetch_video(youtube_id: str) -> dict:
     info = {
         k: raw.get(k)
         for k in [
-            "id", "title", "description", "upload_date",
-            "channel", "channel_id", "uploader", "uploader_url",
-            "duration", "view_count", "like_count", "comment_count",
-            "tags", "categories", "chapters", "heatmap",
-            "webpage_url", "thumbnail",
+            "id",
+            "title",
+            "description",
+            "upload_date",
+            "channel",
+            "channel_id",
+            "uploader",
+            "uploader_url",
+            "duration",
+            "view_count",
+            "like_count",
+            "comment_count",
+            "tags",
+            "categories",
+            "chapters",
+            "heatmap",
+            "webpage_url",
+            "thumbnail",
         ]
     }
 
@@ -50,20 +68,33 @@ def fetch_video(youtube_id: str) -> dict:
     }
 
 
-def fetch_audio(youtube_id: str) -> dict:
-    """Download audio only for a video. Returns audio file path."""
+def fetch_audio(youtube_id: str, duration_seconds: int = 0) -> dict:
+    """
+    Download audio for a video.
+    If duration > CHUNK_THRESHOLD_SECS, splits into chunks using ffmpeg stream-copy
+    (no re-encode — fast and low RAM). Returns list of chunk file paths.
+    """
+    CHUNK_THRESHOLD_SECS = 20 * 60  # 20 minutes
+    CHUNK_SIZE_SECS = 19 * 60  # 19-min chunks — safely under Groq 25MB limit
+
     url = f"https://www.youtube.com/watch?v={youtube_id}"
     tmpdir = tempfile.mkdtemp()
+    audio_path = f"{tmpdir}/{youtube_id}.mp3"
 
     cookie_file = os.path.join(os.path.dirname(__file__), "..", "cookies.txt")
     cmd = [
         "yt-dlp",
         "-x",
-        "--audio-format", "mp3",
-        "--audio-quality", "9",     # ~48kbps — sufficient for Whisper
-        "--postprocessor-args", "ffmpeg:-ar 16000 -ac 1",
-        "--js-runtimes", "deno",
-        "-o", f"{tmpdir}/%(id)s.%(ext)s",
+        "--audio-format",
+        "mp3",
+        "--audio-quality",
+        "9",
+        "--postprocessor-args",
+        "ffmpeg:-ar 16000 -ac 1",
+        "--js-runtimes",
+        "deno",
+        "-o",
+        audio_path,
         "--no-playlist",
     ]
     if os.path.exists(cookie_file):
@@ -72,9 +103,42 @@ def fetch_audio(youtube_id: str) -> dict:
     try:
         subprocess.run(cmd, check=True, capture_output=True, text=True)
     except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"yt-dlp audio failed:\nstdout: {e.stdout}\nstderr: {e.stderr}")
+        raise RuntimeError(
+            f"yt-dlp audio failed:\nstdout: {e.stdout}\nstderr: {e.stderr}"
+        )
 
-    return {"audio_path": f"{tmpdir}/{youtube_id}.mp3"}
+    # If short enough, return as single chunk
+    if duration_seconds <= CHUNK_THRESHOLD_SECS:
+        return {"chunks": [{"path": audio_path, "offset": 0}], "chunked": False}
+
+    # Split into chunks using ffmpeg stream-copy (no re-encode)
+    chunks = []
+    offset = 0
+    chunk_index = 0
+    while offset < duration_seconds:
+        chunk_path = f"{tmpdir}/{youtube_id}_chunk{chunk_index:03d}.mp3"
+        split_cmd = [
+            "ffmpeg",
+            "-y",
+            "-ss",
+            str(offset),
+            "-t",
+            str(CHUNK_SIZE_SECS),
+            "-i",
+            audio_path,
+            "-c",
+            "copy",  # stream-copy — no re-encode, minimal RAM
+            chunk_path,
+        ]
+        subprocess.run(split_cmd, check=True, capture_output=True)
+        chunks.append({"path": chunk_path, "offset": offset})
+        offset += CHUNK_SIZE_SECS
+        chunk_index += 1
+
+    # Delete full audio immediately to free disk/RAM
+    os.remove(audio_path)
+
+    return {"chunks": chunks, "chunked": True}
 
 
 def fetch_channel_info(channel_url: str) -> dict:
