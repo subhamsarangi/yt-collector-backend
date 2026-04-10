@@ -38,13 +38,16 @@ WORKABLE_STATUSES = {"pending", "yt_dlp_done"}
 
 
 def get_queue_state() -> dict:
-    """Return counts of active and workable queue items."""
+    """Return counts of active and workable queue items (respecting retry_after cooldown)."""
     try:
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc).isoformat()
         r = requests.get(
             f"{SUPABASE_URL}/rest/v1/queue",
             headers=HEADERS,
             params={
-                "select": "status",
+                "select": "status,retry_after",
                 "status": f"in.({','.join(ACTIVE_STATUSES | WORKABLE_STATUSES)})",
             },
             timeout=8,
@@ -52,7 +55,12 @@ def get_queue_state() -> dict:
         r.raise_for_status()
         rows = r.json()
         active = sum(1 for row in rows if row["status"] in ACTIVE_STATUSES)
-        workable = sum(1 for row in rows if row["status"] in WORKABLE_STATUSES)
+        workable = sum(
+            1
+            for row in rows
+            if row["status"] in WORKABLE_STATUSES
+            and (not row.get("retry_after") or row["retry_after"] <= now)
+        )
         return {"active": active, "workable": workable}
     except Exception as e:
         log.warning(f"Supabase poll failed: {e}")
