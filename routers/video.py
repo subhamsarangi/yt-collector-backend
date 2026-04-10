@@ -1,5 +1,6 @@
 import os
 import traceback
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -149,3 +150,46 @@ async def upload_cookies(file: UploadFile = File(...)):
     with open(cookie_path, "wb") as f:
         f.write(content)
     return {"ok": True, "bytes": len(content)}
+
+
+@router.get("/cookies/info")
+def get_cookies_info():
+    """Return metadata about the current cookies.txt — size, age, and associated Google account email."""
+    cookie_path = os.path.join(os.path.dirname(__file__), "..", "cookies.txt")
+
+    if not os.path.exists(cookie_path):
+        return {"exists": False}
+
+    stat = os.stat(cookie_path)
+    size = stat.st_size
+    modified = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat()
+
+    # Extract Google account email from cookie file
+    # The 'SSID' or 'SID' cookie on .google.com contains account info,
+    # but the email is most reliably found in the '__Secure-3PSID' or
+    # by looking for the 'GMAIL_AT' or checking 'accounts.google.com' cookies.
+    # Most reliably: parse for the 'email' field in google account cookies.
+    email = None
+    try:
+        with open(cookie_path, "r", encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                parts = line.split("\t")
+                if len(parts) < 7:
+                    continue
+                domain, _, _, _, _, name, value = parts[:7]
+                # Google stores the logged-in email in the 'Email' cookie on accounts.google.com
+                if "google" in domain and name.lower() in ("email", "gmail_at"):
+                    email = value
+                    break
+    except Exception:
+        pass
+
+    return {
+        "exists": True,
+        "size": size,
+        "modified": modified,
+        "email": email,
+    }
