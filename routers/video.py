@@ -29,14 +29,13 @@ class SummarizeRequest(BaseModel):
     transcript: str
 
 
-
 @router.post("/video")
 def process_video(req: VideoRequest):
     try:
         result = ytdlp.fetch_video(req.youtube_id)
     except Exception as e:
         print(traceback.format_exc())
-        raise HTTPException(status_code=500, detail="yt-dlp failed")
+        raise HTTPException(status_code=500, detail="yt-dlp metadata failed")
 
     # Upload thumbnail
     with open(result["thumbnail_path"], "rb") as f:
@@ -44,15 +43,28 @@ def process_video(req: VideoRequest):
             f"thumbnails/{req.youtube_id}.jpg", f.read(), "image/jpeg"
         )
 
+    return {
+        "youtube_id": req.youtube_id,
+        "thumbnail_url": thumbnail_url,
+        "metadata": result["metadata"],
+    }
+
+
+@router.post("/video/audio")
+def process_video_audio(req: VideoRequest):
+    try:
+        result = ytdlp.fetch_audio(req.youtube_id)
+    except Exception as e:
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail="yt-dlp audio failed")
+
     # Upload audio
     with open(result["audio_path"], "rb") as f:
         audio_url = r2.upload(f"audio/{req.youtube_id}.mp3", f.read(), "audio/mpeg")
 
     return {
         "youtube_id": req.youtube_id,
-        "thumbnail_url": thumbnail_url,
         "audio_url": audio_url,
-        "metadata": result["metadata"],
     }
 
 
