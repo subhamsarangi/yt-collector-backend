@@ -11,24 +11,26 @@ def expand_queries(topic: str) -> list[str]:
     """Use Groq to generate 4-5 search query variations for a topic."""
     client = Groq(api_key=os.environ["GROQ_API_KEY"])
     response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="qwen/qwen3-32b",
         messages=[
             {
                 "role": "system",
                 "content": (
-                    "You generate YouTube search query variations for a given topic.\n\n"
+                    "You generate YouTube search queries for a given topic that reflect how real people search.\n\n"
                     "Rules:\n"
+                    "- Think about what someone genuinely interested in this topic would search for on YouTube.\n"
+                    "- Queries should reflect real search intent: comparisons, hands-on use, common problems, opinions, specific use cases.\n"
                     "- Every query MUST contain ALL the words from the original topic, verbatim.\n"
-                    "- Only add words to vary the angle — never remove or replace any original words.\n"
-                    "- Add angle words that actually appear in real YouTube titles: tutorial, guide, demo, review, tips, tricks, how to, walkthrough, beginners, deep dive, setup, overview, first look, explained.\n"
+                    "- Do NOT just append generic suffixes like 'tutorial', 'guide', 'tips' — that is lazy and unhelpful.\n"
+                    "- Words added should reflect a specific angle a real person would search, not a keyword list.\n"
                     "- Never include years, numbers, or version numbers.\n"
                     "- Keep each query under 8 words.\n"
                     "- Return a JSON array of 5 strings, no explanation.\n\n"
-                    "Example — topic: \"gemini notebooklm\"\n"
-                    "BAD:  [\"Gemini Explained\", \"Gemini News\", \"NotebookLM review hands on\"]  <- drops words from the original topic\n"
-                    "GOOD: [\"gemini notebooklm tutorial\", \"gemini notebooklm deep dive\", "
-                    "\"gemini notebooklm insane\", \"gemini notebooklm guide\", "
-                    "\"gemini notebooklm tips tricks\"]"
+                    'Example — topic: "gemma llama"\n'
+                    'BAD:  ["gemma llama tutorial", "gemma llama guide", "gemma llama tips"]  <- just suffixes, no real intent\n'
+                    'GOOD: ["gemma vs llama which is better", "running gemma llama locally", '
+                    '"gemma llama fine tuning", "google gemma meta llama benchmark", '
+                    '"gemma llama open source comparison"]'
                 ),
             },
             {"role": "user", "content": f"Topic: {topic}"},
