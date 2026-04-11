@@ -69,8 +69,11 @@ def fetch_video(youtube_id: str) -> dict:
 
 
 def fetch_audio(youtube_id: str, duration_seconds: int = 0) -> dict:
-    """Download exactly 20 minutes of audio via ffmpeg external downloader."""
+    """Download up to 20 minutes of audio, re-encoded to 16kHz mono mp3 in a single pass."""
     MAX_SECONDS = 20 * 60
+    actual_seconds = (
+        min(duration_seconds, MAX_SECONDS) if duration_seconds else MAX_SECONDS
+    )
 
     url = f"https://www.youtube.com/watch?v={youtube_id}"
     tmpdir = tempfile.mkdtemp()
@@ -82,14 +85,11 @@ def fetch_audio(youtube_id: str, duration_seconds: int = 0) -> dict:
         "--external-downloader",
         "ffmpeg",
         "--external-downloader-args",
-        f"ffmpeg_i:-ss 0 -t {MAX_SECONDS}",
+        # Single ffmpeg pass: trim + strip video + resample 16kHz mono + encode mp3 q9
+        f"ffmpeg_i:-ss 0 -t {actual_seconds} ffmpeg:-vn -ar 16000 -ac 1 -q:a 9",
         "-x",
         "--audio-format",
         "mp3",
-        "--audio-quality",
-        "9",
-        "--postprocessor-args",
-        "ffmpeg:-ar 16000 -ac 1",
         "--js-runtimes",
         "deno",
         "-o",

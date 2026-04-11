@@ -192,12 +192,11 @@ def get_cookies_info():
 
 @router.get("/speed-test")
 def speed_test():
-    """Run a quick download speed test and return MB/s + ETA for 20-min audio (~7MB)."""
+    """Run a quick download speed test and return MB/s."""
     import urllib.request
     import time
 
-    EXPECTED_SIZE_MB = 7.0
-    TEST_BYTES = 2_000_000  # 2MB for a more reliable sample
+    TEST_BYTES = 2_000_000  # 2MB sample
     url = f"https://speed.cloudflare.com/__down?bytes={TEST_BYTES}"
     print(
         f"[speed-test] Starting — downloading {TEST_BYTES // 1_000_000}MB from Cloudflare..."
@@ -210,15 +209,10 @@ def speed_test():
         elapsed = time.time() - t0
         actual_mb = len(data) / 1_000_000
         speed_mbps = round(actual_mb / elapsed, 2)
-        eta_s = round(EXPECTED_SIZE_MB / speed_mbps)
         print(
-            f"[speed-test] Done — {actual_mb:.2f}MB in {elapsed:.2f}s = {speed_mbps} MB/s, ETA for {EXPECTED_SIZE_MB}MB: ~{eta_s}s"
+            f"[speed-test] Done — {actual_mb:.2f}MB in {elapsed:.2f}s = {speed_mbps} MB/s"
         )
-        return {
-            "speed_mbps": speed_mbps,
-            "eta_s": eta_s,
-            "expected_size_mb": EXPECTED_SIZE_MB,
-        }
+        return {"speed_mbps": speed_mbps}
     except Exception as e:
         print(f"[speed-test] Failed — {e}")
-        return {"speed_mbps": None, "eta_s": None, "error": str(e)}
+        return {"speed_mbps": None, "error": str(e)}
