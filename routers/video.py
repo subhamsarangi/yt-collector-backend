@@ -54,12 +54,15 @@ def process_video(req: VideoRequest):
 class VideoAudioRequest(BaseModel):
     youtube_id: str
     duration_seconds: int = 0
+    cap_seconds: int = 600  # default 10 min
 
 
 @router.post("/video/audio")
 def process_video_audio(req: VideoAudioRequest):
     try:
-        result = ytdlp.fetch_audio(req.youtube_id, req.duration_seconds)
+        result = ytdlp.fetch_audio(
+            req.youtube_id, req.duration_seconds, req.cap_seconds
+        )
     except Exception as e:
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"yt-dlp audio failed: {e}")

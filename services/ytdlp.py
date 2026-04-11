@@ -68,11 +68,12 @@ def fetch_video(youtube_id: str) -> dict:
     }
 
 
-def fetch_audio(youtube_id: str, duration_seconds: int = 0) -> dict:
-    """Download up to 20 minutes of audio, re-encoded to 16kHz mono mp3 in a single pass."""
-    MAX_SECONDS = 20 * 60
+def fetch_audio(
+    youtube_id: str, duration_seconds: int = 0, cap_seconds: int = 600
+) -> dict:
+    """Download up to cap_seconds of audio, re-encoded to 16kHz mono mp3."""
     actual_seconds = (
-        min(duration_seconds, MAX_SECONDS) if duration_seconds else MAX_SECONDS
+        min(duration_seconds, cap_seconds) if duration_seconds else cap_seconds
     )
 
     url = f"https://www.youtube.com/watch?v={youtube_id}"
@@ -119,7 +120,7 @@ def fetch_audio(youtube_id: str, duration_seconds: int = 0) -> dict:
         "elapsed_s": round(elapsed, 1),
         "speed_mbps": round(size_mb / elapsed, 2) if elapsed > 0 else 0,
         "downloaded_duration_s": (
-            min(duration_seconds, MAX_SECONDS) if duration_seconds else MAX_SECONDS
+            min(duration_seconds, cap_seconds) if duration_seconds else cap_seconds
         ),
     }
 
