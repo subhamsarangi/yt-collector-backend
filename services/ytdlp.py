@@ -70,10 +70,11 @@ def fetch_video(youtube_id: str) -> dict:
 
 def fetch_audio(youtube_id: str, duration_seconds: int = 0) -> dict:
     """
-    Download up to 38 minutes of audio for a video using --download-sections.
-    Always returns a single file — no chunking needed.
+    Download exactly 20 minutes of audio using ffmpeg as the external downloader.
+    ffmpeg handles the cut during download — only 20 min of data is transferred.
+    Returns audio path + stats for logging.
     """
-    MAX_SECONDS = 38 * 60  # 2280s
+    MAX_SECONDS = 20 * 60  # 1200s — hard cap, only this much is downloaded
 
     url = f"https://www.youtube.com/watch?v={youtube_id}"
     tmpdir = tempfile.mkdtemp()
@@ -82,8 +83,11 @@ def fetch_audio(youtube_id: str, duration_seconds: int = 0) -> dict:
     cookie_file = os.path.join(os.path.dirname(__file__), "..", "cookies.txt")
     cmd = [
         "yt-dlp",
-        "--download-sections",
-        f"*0-{MAX_SECONDS}",
+        # Use ffmpeg as external downloader with -t to cut during download
+        "--external-downloader",
+        "ffmpeg",
+        "--external-downloader-args",
+        f"ffmpeg_i:-ss 0 -t {MAX_SECONDS}",
         "-x",
         "--audio-format",
         "mp3",
@@ -100,14 +104,30 @@ def fetch_audio(youtube_id: str, duration_seconds: int = 0) -> dict:
     if os.path.exists(cookie_file):
         cmd += ["--cookies", os.path.abspath(cookie_file)]
     cmd.append(url)
+
+    start_time = datetime.now(timezone.utc)
     try:
         subprocess.run(cmd, check=True, capture_output=True, text=True)
     except subprocess.CalledProcessError as e:
         raise RuntimeError(
             f"yt-dlp audio failed:\nstdout: {e.stdout}\nstderr: {e.stderr}"
         )
+    elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
 
-    return {"audio_path": audio_path}
+    file_size = os.path.getsize(audio_path)
+    size_mb = round(file_size / 1024 / 1024, 2)
+    speed_mbps = round(size_mb / elapsed, 2) if elapsed > 0 else 0
+    actual_duration = (
+        min(duration_seconds, MAX_SECONDS) if duration_seconds else MAX_SECONDS
+    )
+
+    return {
+        "audio_path": audio_path,
+        "size_mb": size_mb,
+        "elapsed_s": round(elapsed, 1),
+        "speed_mbps": speed_mbps,
+        "downloaded_duration_s": actual_duration,
+    }
 
 
 def fetch_channel_info(channel_url: str) -> dict:

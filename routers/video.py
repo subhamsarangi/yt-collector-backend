@@ -69,7 +69,14 @@ def process_video_audio(req: VideoAudioRequest):
     size_mb = round(len(data) / 1024 / 1024, 2)
     os.remove(result["audio_path"])
 
-    return {"youtube_id": req.youtube_id, "audio_url": audio_url, "size_mb": size_mb}
+    return {
+        "youtube_id": req.youtube_id,
+        "audio_url": audio_url,
+        "size_mb": size_mb,
+        "elapsed_s": result.get("elapsed_s"),
+        "speed_mbps": result.get("speed_mbps"),
+        "downloaded_duration_s": result.get("downloaded_duration_s"),
+    }
 
 
 @router.post("/channel/scan")
