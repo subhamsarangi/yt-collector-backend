@@ -33,8 +33,13 @@ HEADERS = {
     "Authorization": f"Bearer {SUPABASE_KEY}",
 }
 
-ACTIVE_STATUSES = {"yt_dlp_processing", "whisper_processing", "whisper_done"}
-WORKABLE_STATUSES = {"pending", "yt_dlp_done"}
+ACTIVE_STATUSES = {
+    "metadata_processing",
+    "audio_processing",
+    "transcribing",
+    "summarizing",
+}
+WORKABLE_STATUSES = {"pending", "metadata_done", "audio_done"}
 
 
 def get_queue_state() -> dict:
