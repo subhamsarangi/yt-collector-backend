@@ -196,19 +196,28 @@ def speed_test():
     import time
 
     EXPECTED_SIZE_MB = 7.0
+    TEST_BYTES = 2_000_000  # 2MB for a more reliable sample
+    url = f"https://speed.cloudflare.com/__down?bytes={TEST_BYTES}"
+    print(
+        f"[speed-test] Starting — downloading {TEST_BYTES // 1_000_000}MB from Cloudflare..."
+    )
     try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         t0 = time.time()
-        with urllib.request.urlopen(
-            "https://speed.cloudflare.com/__down?bytes=1000000", timeout=10
-        ) as resp:
-            resp.read()
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = resp.read()
         elapsed = time.time() - t0
-        speed_mbps = round(1.0 / elapsed, 2)
+        actual_mb = len(data) / 1_000_000
+        speed_mbps = round(actual_mb / elapsed, 2)
         eta_s = round(EXPECTED_SIZE_MB / speed_mbps)
+        print(
+            f"[speed-test] Done — {actual_mb:.2f}MB in {elapsed:.2f}s = {speed_mbps} MB/s, ETA for {EXPECTED_SIZE_MB}MB: ~{eta_s}s"
+        )
         return {
             "speed_mbps": speed_mbps,
             "eta_s": eta_s,
             "expected_size_mb": EXPECTED_SIZE_MB,
         }
     except Exception as e:
+        print(f"[speed-test] Failed — {e}")
         return {"speed_mbps": None, "eta_s": None, "error": str(e)}
