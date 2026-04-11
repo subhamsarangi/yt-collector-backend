@@ -76,8 +76,6 @@ def process_video_audio(req: VideoAudioRequest):
         "elapsed_s": result.get("elapsed_s"),
         "speed_mbps": result.get("speed_mbps"),
         "downloaded_duration_s": result.get("downloaded_duration_s"),
-        "speed_estimate_mbps": result.get("speed_estimate_mbps"),
-        "estimated_download_s": result.get("estimated_download_s"),
     }
 
 

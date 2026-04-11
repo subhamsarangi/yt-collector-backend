@@ -69,31 +69,8 @@ def fetch_video(youtube_id: str) -> dict:
 
 
 def fetch_audio(youtube_id: str, duration_seconds: int = 0) -> dict:
-    """
-    Download exactly 20 minutes of audio using ffmpeg as the external downloader.
-    ffmpeg handles the cut during download — only 20 min of data is transferred.
-    Returns audio path + stats for logging.
-    """
-    MAX_SECONDS = 20 * 60  # 1200s
-    EXPECTED_SIZE_MB = 7.0  # ~48kbps mono 16kHz × 1200s ≈ 7MB
-
-    # ── Speed test before download ──
-    speed_estimate_mbps = None
-    estimated_download_s = None
-    try:
-        import urllib.request
-
-        t0 = datetime.now(timezone.utc)
-        with urllib.request.urlopen(
-            "https://speed.cloudflare.com/__down?bytes=1000000", timeout=10
-        ) as resp:
-            resp.read()
-        test_elapsed = (datetime.now(timezone.utc) - t0).total_seconds()
-        speed_estimate_mbps = round(1.0 / test_elapsed, 2) if test_elapsed > 0 else None
-        if speed_estimate_mbps:
-            estimated_download_s = round(EXPECTED_SIZE_MB / speed_estimate_mbps)
-    except Exception:
-        pass  # non-fatal
+    """Download exactly 20 minutes of audio via ffmpeg external downloader."""
+    MAX_SECONDS = 20 * 60
 
     url = f"https://www.youtube.com/watch?v={youtube_id}"
     tmpdir = tempfile.mkdtemp()
@@ -132,21 +109,15 @@ def fetch_audio(youtube_id: str, duration_seconds: int = 0) -> dict:
         )
     elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
 
-    file_size = os.path.getsize(audio_path)
-    size_mb = round(file_size / 1024 / 1024, 2)
-    actual_speed_mbps = round(size_mb / elapsed, 2) if elapsed > 0 else 0
-    actual_duration = (
-        min(duration_seconds, MAX_SECONDS) if duration_seconds else MAX_SECONDS
-    )
-
+    size_mb = round(os.path.getsize(audio_path) / 1024 / 1024, 2)
     return {
         "audio_path": audio_path,
         "size_mb": size_mb,
         "elapsed_s": round(elapsed, 1),
-        "speed_mbps": actual_speed_mbps,
-        "downloaded_duration_s": actual_duration,
-        "speed_estimate_mbps": speed_estimate_mbps,
-        "estimated_download_s": estimated_download_s,
+        "speed_mbps": round(size_mb / elapsed, 2) if elapsed > 0 else 0,
+        "downloaded_duration_s": (
+            min(duration_seconds, MAX_SECONDS) if duration_seconds else MAX_SECONDS
+        ),
     }
 
 
