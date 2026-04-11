@@ -76,6 +76,8 @@ def process_video_audio(req: VideoAudioRequest):
         "elapsed_s": result.get("elapsed_s"),
         "speed_mbps": result.get("speed_mbps"),
         "downloaded_duration_s": result.get("downloaded_duration_s"),
+        "speed_estimate_mbps": result.get("speed_estimate_mbps"),
+        "estimated_download_s": result.get("estimated_download_s"),
     }
 
 
@@ -187,3 +189,28 @@ def get_cookies_info():
         "modified": modified,
         "email": email,
     }
+
+
+@router.get("/speed-test")
+def speed_test():
+    """Run a quick download speed test and return MB/s + ETA for 20-min audio (~7MB)."""
+    import urllib.request
+    import time
+
+    EXPECTED_SIZE_MB = 7.0
+    try:
+        t0 = time.time()
+        with urllib.request.urlopen(
+            "https://speed.cloudflare.com/__down?bytes=1000000", timeout=10
+        ) as resp:
+            resp.read()
+        elapsed = time.time() - t0
+        speed_mbps = round(1.0 / elapsed, 2)
+        eta_s = round(EXPECTED_SIZE_MB / speed_mbps)
+        return {
+            "speed_mbps": speed_mbps,
+            "eta_s": eta_s,
+            "expected_size_mb": EXPECTED_SIZE_MB,
+        }
+    except Exception as e:
+        return {"speed_mbps": None, "eta_s": None, "error": str(e)}
