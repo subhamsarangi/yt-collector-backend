@@ -165,7 +165,8 @@ def scan_channel(channel_url: str) -> list[dict]:
 
     cookie_file = os.path.join(os.path.dirname(__file__), "..", "cookies.txt")
 
-    # --flat-playlist avoids bot checks and returns lightweight stubs with timestamps.
+    # --flat-playlist with approximate_date extractor arg populates release_timestamp
+    # in stubs without fetching full video metadata — fast and no bot checks.
     # We grab the last 15 uploads and filter by date ourselves.
     cmd = [
         "yt-dlp",
@@ -173,6 +174,8 @@ def scan_channel(channel_url: str) -> list[dict]:
         "--dump-single-json",
         "--playlist-end",
         "15",
+        "--extractor-args",
+        "youtubetab:approximate_date",
         "--no-download",
         base_url,
     ]
