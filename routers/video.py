@@ -85,9 +85,16 @@ def process_video_audio(req: VideoAudioRequest):
 
 @router.post("/channel/scan")
 def scan_channel(req: ChannelScanRequest):
+    print(f"[channel/scan] Scanning: {req.channel_url}", flush=True)
     try:
         entries = ytdlp.scan_channel(req.channel_url)
+        print(
+            f"[channel/scan] Found {len(entries)} entries for {req.channel_url}",
+            flush=True,
+        )
     except Exception as e:
+        print(f"[channel/scan] ERROR for {req.channel_url}: {e}", flush=True)
+        print(traceback.format_exc(), flush=True)
         raise HTTPException(status_code=500, detail=f"Channel scan failed: {e}")
     return {"entries": entries}
 

@@ -151,27 +151,58 @@ def fetch_channel_info(channel_url: str) -> dict:
 def scan_channel(channel_url: str) -> list[dict]:
     """Return videos published in the last 24 hours from a channel."""
     since = (datetime.now(timezone.utc) - timedelta(hours=24)).strftime("%Y%m%d")
+    print(f"[scan_channel] Scanning {channel_url} for videos since {since}", flush=True)
 
+    # Ensure we hit the /videos tab so yt-dlp gets the uploads playlist
+    base_url = channel_url.rstrip("/")
+    if not base_url.endswith("/videos"):
+        base_url = base_url + "/videos"
+
+    # --flat-playlist ignores --dateafter, so we use --no-download + --dateafter
+    # and limit to the 10 most recent uploads to avoid scanning the full history
     cmd = [
         "yt-dlp",
-        "--flat-playlist",
         "--dump-single-json",
+        "--no-download",
         "--dateafter",
         since,
-        "--no-download",
-        channel_url,
+        "--playlist-end",
+        "10",
+        "--no-playlist-reverse",
+        base_url,
     ]
-    result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+    try:
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as e:
+        print(
+            f"[scan_channel] yt-dlp failed for {channel_url}:\nstdout: {e.stdout}\nstderr: {e.stderr}",
+            flush=True,
+        )
+        raise
+
     data = json.loads(result.stdout)
-    entries = data.get("entries", [])
-    # Filter to valid video IDs only (11 chars) — excludes channel IDs (UC..., 24 chars)
-    return [
+
+    # Result may be a single video or a playlist with entries
+    if data.get("_type") == "playlist":
+        entries = data.get("entries") or []
+    elif data.get("id") and len(data.get("id", "")) == 11:
+        entries = [data]
+    else:
+        entries = []
+
+    filtered = [
         e
         for e in entries
-        if e.get("id")
+        if e
+        and e.get("id")
         and len(e["id"]) == 11
         and e.get("ie_key", "").lower() != "youtubetab"
     ]
+    print(
+        f"[scan_channel] {len(entries)} raw entries → {len(filtered)} valid videos for {channel_url}",
+        flush=True,
+    )
+    return filtered
 
 
 def search_topic(topic: str, max_results: int = 5, language: str = "en") -> list[dict]:
