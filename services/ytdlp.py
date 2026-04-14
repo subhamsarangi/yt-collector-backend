@@ -206,28 +206,15 @@ def scan_channel(channel_url: str) -> list[dict]:
 
         # Filter by date: prefer unix timestamp, fall back to upload_date string (YYYYMMDD)
         ts = e.get("timestamp")
-        upload_date = e.get("upload_date")  # "20260415"
-        print(
-            f"[scan_channel] {vid_id} — timestamp={ts} upload_date={upload_date} release_timestamp={e.get('release_timestamp')}",
-            flush=True,
-        )
+        upload_date = e.get("upload_date")
         if ts is not None:
             if ts < since_ts:
-                print(
-                    f"[scan_channel] Skipping {vid_id} — too old (timestamp)",
-                    flush=True,
-                )
                 continue
         elif upload_date:
             if upload_date < since_str:
-                print(
-                    f"[scan_channel] Skipping {vid_id} — too old ({upload_date})",
-                    flush=True,
-                )
                 continue
         else:
-            # No date info at all — skip to avoid false positives
-            print(f"[scan_channel] Skipping {vid_id} — no date available", flush=True)
+            # No date info — skip to avoid false positives
             continue
 
         filtered.append(e)
