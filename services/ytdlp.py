@@ -150,27 +150,35 @@ def fetch_channel_info(channel_url: str) -> dict:
 
 def scan_channel(channel_url: str) -> list[dict]:
     """Return videos published in the last 24 hours from a channel."""
-    since = (datetime.now(timezone.utc) - timedelta(hours=24)).strftime("%Y%m%d")
-    print(f"[scan_channel] Scanning {channel_url} for videos since {since}", flush=True)
+    since_dt = datetime.now(timezone.utc) - timedelta(hours=24)
+    since_ts = since_dt.timestamp()
+    since_str = since_dt.strftime("%Y%m%d")
+    print(
+        f"[scan_channel] Scanning {channel_url} for videos since {since_str}",
+        flush=True,
+    )
 
-    # Ensure we hit the /videos tab so yt-dlp gets the uploads playlist
+    # Ensure we hit the /videos tab
     base_url = channel_url.rstrip("/")
     if not base_url.endswith("/videos"):
         base_url = base_url + "/videos"
 
-    # --flat-playlist ignores --dateafter, so we use --no-download + --dateafter
-    # and limit to the 10 most recent uploads to avoid scanning the full history
+    cookie_file = os.path.join(os.path.dirname(__file__), "..", "cookies.txt")
+
+    # --flat-playlist avoids bot checks and returns lightweight stubs with timestamps.
+    # We grab the last 15 uploads and filter by date ourselves.
     cmd = [
         "yt-dlp",
+        "--flat-playlist",
         "--dump-single-json",
-        "--no-download",
-        "--dateafter",
-        since,
         "--playlist-end",
-        "10",
-        "--no-playlist-reverse",
+        "15",
+        "--no-download",
         base_url,
     ]
+    if os.path.exists(cookie_file):
+        cmd += ["--cookies", os.path.abspath(cookie_file)]
+
     try:
         result = subprocess.run(cmd, check=True, capture_output=True, text=True)
     except subprocess.CalledProcessError as e:
@@ -181,25 +189,41 @@ def scan_channel(channel_url: str) -> list[dict]:
         raise
 
     data = json.loads(result.stdout)
+    entries = data.get("entries") or []
 
-    # Result may be a single video or a playlist with entries
-    if data.get("_type") == "playlist":
-        entries = data.get("entries") or []
-    elif data.get("id") and len(data.get("id", "")) == 11:
-        entries = [data]
-    else:
-        entries = []
+    filtered = []
+    for e in entries:
+        if not e:
+            continue
+        vid_id = e.get("id", "")
+        if not vid_id or len(vid_id) != 11:
+            continue
+        if e.get("ie_key", "").lower() == "youtubetab":
+            continue
 
-    filtered = [
-        e
-        for e in entries
-        if e
-        and e.get("id")
-        and len(e["id"]) == 11
-        and e.get("ie_key", "").lower() != "youtubetab"
-    ]
+        # Filter by date: prefer unix timestamp, fall back to upload_date string (YYYYMMDD)
+        ts = e.get("timestamp")
+        upload_date = e.get("upload_date")  # "20260415"
+        if ts is not None:
+            if ts < since_ts:
+                print(
+                    f"[scan_channel] Skipping {vid_id} — too old (timestamp)",
+                    flush=True,
+                )
+                continue
+        elif upload_date:
+            if upload_date < since_str:
+                print(
+                    f"[scan_channel] Skipping {vid_id} — too old ({upload_date})",
+                    flush=True,
+                )
+                continue
+        # If neither field is present, include it (let dedup handle it)
+
+        filtered.append(e)
+
     print(
-        f"[scan_channel] {len(entries)} raw entries → {len(filtered)} valid videos for {channel_url}",
+        f"[scan_channel] {len(entries)} raw entries → {len(filtered)} within 24h for {channel_url}",
         flush=True,
     )
     return filtered
