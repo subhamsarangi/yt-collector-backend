@@ -252,6 +252,12 @@ def search_topic(
         and len(e["id"]) == 11
         and e.get("ie_key", "").lower() != "youtubetab"
         and (e.get("language") in (language, None, ""))
-        and (not shorts_only or (e.get("duration") is not None and e["duration"] <= 60))
+        and (
+            not shorts_only
+            or (
+                (e.get("duration") is not None and e["duration"] <= 180)
+                or (e.get("webpage_url") and "/shorts/" in e["webpage_url"])
+            )
+        )
     ]
     return filtered[:max_results]
