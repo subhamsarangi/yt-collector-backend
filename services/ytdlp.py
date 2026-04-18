@@ -226,11 +226,18 @@ def scan_channel(channel_url: str) -> list[dict]:
     return filtered
 
 
-def search_topic(topic: str, max_results: int = 5, language: str = "en") -> list[dict]:
-    """Search YouTube and return top N video results for a topic, filtered by language."""
+def search_topic(
+    topic: str, max_results: int = 5, language: str = "en", shorts_only: bool = False
+) -> list[dict]:
+    """Search YouTube and return top N video results for a topic, filtered by language.
+
+    If shorts_only=True, only returns videos with duration <= 60 seconds.
+    Fetches extra results to account for filtering.
+    """
+    fetch_count = max_results * 3 if not shorts_only else max_results * 6
     cmd = [
         "yt-dlp",
-        f"ytsearch{max_results * 3}:{topic}",  # fetch more to account for filtering
+        f"ytsearch{fetch_count}:{topic}",
         "--dump-single-json",
         "--flat-playlist",
         "--no-download",
@@ -245,5 +252,6 @@ def search_topic(topic: str, max_results: int = 5, language: str = "en") -> list
         and len(e["id"]) == 11
         and e.get("ie_key", "").lower() != "youtubetab"
         and (e.get("language") in (language, None, ""))
+        and (not shorts_only or (e.get("duration") is not None and e["duration"] <= 60))
     ]
     return filtered[:max_results]

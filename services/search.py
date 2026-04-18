@@ -72,7 +72,9 @@ def score_video(entry: dict) -> float:
     return (views * 0.5) + (likes * 2) + recency_bonus
 
 
-def search_enhanced(topic: str, top_n: int = 5) -> list[dict]:
+def search_enhanced(
+    topic: str, top_n: int = 5, shorts_only: bool = False
+) -> list[dict]:
     """
     Generate query variations, search all in parallel,
     deduplicate, score, and return top N videos.
@@ -82,7 +84,10 @@ def search_enhanced(topic: str, top_n: int = 5) -> list[dict]:
     # Search all queries in parallel
     all_entries: list[dict] = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        futures = {executor.submit(ytdlp.search_topic, q, 8): q for q in queries}
+        futures = {
+            executor.submit(ytdlp.search_topic, q, 8, shorts_only=shorts_only): q
+            for q in queries
+        }
         for future in concurrent.futures.as_completed(futures):
             try:
                 all_entries.extend(future.result())
@@ -103,7 +108,9 @@ def search_enhanced(topic: str, top_n: int = 5) -> list[dict]:
     return unique[:top_n]
 
 
-def search_enhanced_stream(topic: str, top_n: int = 5) -> Generator[str, None, None]:
+def search_enhanced_stream(
+    topic: str, top_n: int = 5, shorts_only: bool = False
+) -> Generator[str, None, None]:
     """
     Same as search_enhanced but yields SSE-formatted strings so the caller
     can stream progress back to the client.
@@ -119,14 +126,19 @@ def search_enhanced_stream(topic: str, top_n: int = 5) -> Generator[str, None, N
 
     # Step 2 — parallel YouTube searches
     yield event(
-        {"step": f"Searching YouTube with {len(queries)} queries in parallel..."}
+        {
+            "step": f"Searching YouTube with {len(queries)} queries in parallel{' (Shorts only)' if shorts_only else ''}..."
+        }
     )
 
     all_entries: list[dict] = []
     completed = 0
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        futures = {executor.submit(ytdlp.search_topic, q, 8): q for q in queries}
+        futures = {
+            executor.submit(ytdlp.search_topic, q, 8, shorts_only=shorts_only): q
+            for q in queries
+        }
         for future in concurrent.futures.as_completed(futures):
             q = futures[future]
             try:

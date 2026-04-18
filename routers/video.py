@@ -24,6 +24,7 @@ class ChannelInfoRequest(BaseModel):
 
 class SearchRequest(BaseModel):
     topic: str
+    shorts_only: bool = False
 
 
 class SummarizeRequest(BaseModel):
@@ -121,7 +122,7 @@ def search_topic(req: SearchRequest):
 @router.post("/search/enhanced")
 def search_enhanced(req: SearchRequest):
     try:
-        results = search_service.search_enhanced(req.topic)
+        results = search_service.search_enhanced(req.topic, shorts_only=req.shorts_only)
     except Exception as e:
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Enhanced search failed: {e}")
@@ -131,7 +132,7 @@ def search_enhanced(req: SearchRequest):
 @router.post("/search/enhanced/stream")
 def search_enhanced_stream(req: SearchRequest):
     return StreamingResponse(
-        search_service.search_enhanced_stream(req.topic),
+        search_service.search_enhanced_stream(req.topic, shorts_only=req.shorts_only),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
