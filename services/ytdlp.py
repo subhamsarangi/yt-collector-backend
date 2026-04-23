@@ -226,22 +226,57 @@ def scan_channel(channel_url: str) -> list[dict]:
     return filtered
 
 
+def _is_short(entry: dict) -> bool:
+    """Return True if a flat-playlist entry is a genuine YouTube Short.
+
+    YouTube Shorts have a /shorts/ URL. Since October 2024 Shorts can be up to
+    180 s, so duration alone is not a reliable signal — a regular 2-minute video
+    would pass a duration <= 180 check. We require the /shorts/ URL path instead,
+    with duration <= 180 s as a secondary guard.
+    """
+    url = entry.get("url") or entry.get("webpage_url") or ""
+    has_shorts_url = "/shorts/" in url
+    duration = entry.get("duration")
+    within_duration = duration is not None and duration <= 180
+    return has_shorts_url and within_duration
+
+
 def search_topic(
     topic: str, max_results: int = 5, language: str = "en", shorts_only: bool = False
 ) -> list[dict]:
     """Search YouTube and return top N video results for a topic, filtered by language.
 
-    If shorts_only=True, only returns videos with duration <= 60 seconds.
-    Fetches extra results to account for filtering.
+    If shorts_only=True, uses YouTube's dedicated Shorts search filter (EgIQCQ==)
+    and then verifies each result has a /shorts/ URL to exclude regular short videos.
     """
-    fetch_count = max_results * 3 if not shorts_only else max_results * 6
-    cmd = [
-        "yt-dlp",
-        f"ytsearch{fetch_count}:{topic}",
-        "--dump-single-json",
-        "--flat-playlist",
-        "--no-download",
-    ]
+    fetch_count = max_results * 3 if not shorts_only else max_results * 8
+
+    if shorts_only:
+        # EgIQCQ== is YouTube's Shorts-specific search filter (Type → Shorts),
+        # introduced in the January 2026 search filter update. The older EgIQAQ==
+        # was a generic short-duration filter that also returned regular videos.
+        import urllib.parse
+
+        query_encoded = urllib.parse.quote(topic)
+        search_url = f"https://www.youtube.com/results?search_query={query_encoded}&sp=EgIQCQ%3D%3D"
+        cmd = [
+            "yt-dlp",
+            search_url,
+            "--dump-single-json",
+            "--flat-playlist",
+            "--no-download",
+            "--playlist-end",
+            str(fetch_count),
+        ]
+    else:
+        cmd = [
+            "yt-dlp",
+            f"ytsearch{fetch_count}:{topic}",
+            "--dump-single-json",
+            "--flat-playlist",
+            "--no-download",
+        ]
+
     result = subprocess.run(cmd, check=True, capture_output=True, text=True)
     data = json.loads(result.stdout)
     entries = data.get("entries", [])
@@ -252,12 +287,6 @@ def search_topic(
         and len(e["id"]) == 11
         and e.get("ie_key", "").lower() != "youtubetab"
         and (e.get("language") in (language, None, ""))
-        and (
-            not shorts_only
-            or (
-                (e.get("duration") is not None and e["duration"] <= 180)
-                or (e.get("webpage_url") and "/shorts/" in e["webpage_url"])
-            )
-        )
+        and (not shorts_only or _is_short(e))
     ]
     return filtered[:max_results]
