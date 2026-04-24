@@ -28,7 +28,7 @@ def _chunk_transcript(transcript: str) -> list[str]:
 def _summarize_chunk(client: Groq, chunk: str, part: int, total: int) -> str:
     part_note = f" (part {part} of {total})" if total > 1 else ""
     response = client.chat.completions.create(
-        model="moonshotai/kimi-k2-instruct",
+        model="llama-3.3-70b-versatile",
         messages=[
             {
                 "role": "system",
@@ -58,7 +58,7 @@ def _merge_summaries(client: Groq, summaries: list[str]) -> str:
     """Merge multiple chunk summaries into a single coherent bullet list."""
     combined = "\n\n".join(summaries)
     response = client.chat.completions.create(
-        model="moonshotai/kimi-k2-instruct",
+        model="llama-3.3-70b-versatile",
         messages=[
             {
                 "role": "system",
