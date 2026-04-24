@@ -148,13 +148,13 @@ def fetch_channel_info(channel_url: str) -> dict:
     }
 
 
-def scan_channel(channel_url: str) -> list[dict]:
+def scan_channel(channel_url: str, count: int = 15) -> list[dict]:
     """Return videos published in the last 24 hours from a channel."""
     since_dt = datetime.now(timezone.utc) - timedelta(hours=24)
     since_ts = since_dt.timestamp()
     since_str = since_dt.strftime("%Y%m%d")
     print(
-        f"[scan_channel] Scanning {channel_url} for videos since {since_str}",
+        f"[scan_channel] Scanning {channel_url} for videos since {since_str} (count={count})",
         flush=True,
     )
 
@@ -167,13 +167,13 @@ def scan_channel(channel_url: str) -> list[dict]:
 
     # --flat-playlist with approximate_date extractor arg populates release_timestamp
     # in stubs without fetching full video metadata — fast and no bot checks.
-    # We grab the last 15 uploads and filter by date ourselves.
+    # We grab the last N uploads and filter by date ourselves.
     cmd = [
         "yt-dlp",
         "--flat-playlist",
         "--dump-single-json",
         "--playlist-end",
-        "15",
+        str(count),
         "--extractor-args",
         "youtubetab:approximate_date",
         "--no-download",
