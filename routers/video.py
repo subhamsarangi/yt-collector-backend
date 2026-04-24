@@ -17,6 +17,7 @@ class VideoRequest(BaseModel):
 class ChannelScanRequest(BaseModel):
     channel_url: str
     count: int = 15
+    no_date_filter: bool = False
 
 
 class ChannelInfoRequest(BaseModel):
@@ -87,9 +88,14 @@ def process_video_audio(req: VideoAudioRequest):
 
 @router.post("/channel/scan")
 def scan_channel(req: ChannelScanRequest):
-    print(f"[channel/scan] Scanning: {req.channel_url} (count={req.count})", flush=True)
+    print(
+        f"[channel/scan] Scanning: {req.channel_url} (count={req.count}, no_date_filter={req.no_date_filter})",
+        flush=True,
+    )
     try:
-        entries = ytdlp.scan_channel(req.channel_url, count=req.count)
+        entries = ytdlp.scan_channel(
+            req.channel_url, count=req.count, no_date_filter=req.no_date_filter
+        )
         print(
             f"[channel/scan] Found {len(entries)} entries for {req.channel_url}",
             flush=True,

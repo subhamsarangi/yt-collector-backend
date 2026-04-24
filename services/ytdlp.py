@@ -148,15 +148,24 @@ def fetch_channel_info(channel_url: str) -> dict:
     }
 
 
-def scan_channel(channel_url: str, count: int = 15) -> list[dict]:
-    """Return videos published in the last 24 hours from a channel."""
+def scan_channel(
+    channel_url: str, count: int = 15, no_date_filter: bool = False
+) -> list[dict]:
+    """Return videos from a channel. By default filters to last 24 hours.
+    Pass no_date_filter=True to return the N most recent videos regardless of date."""
     since_dt = datetime.now(timezone.utc) - timedelta(hours=24)
     since_ts = since_dt.timestamp()
     since_str = since_dt.strftime("%Y%m%d")
-    print(
-        f"[scan_channel] Scanning {channel_url} for videos since {since_str} (count={count})",
-        flush=True,
-    )
+    if not no_date_filter:
+        print(
+            f"[scan_channel] Scanning {channel_url} for videos since {since_str} (count={count})",
+            flush=True,
+        )
+    else:
+        print(
+            f"[scan_channel] Scanning {channel_url} for latest {count} videos (no date filter)",
+            flush=True,
+        )
 
     # Ensure we hit the /videos tab
     base_url = channel_url.rstrip("/")
@@ -204,23 +213,24 @@ def scan_channel(channel_url: str, count: int = 15) -> list[dict]:
         if e.get("ie_key", "").lower() == "youtubetab":
             continue
 
-        # Filter by date: prefer unix timestamp, fall back to upload_date string (YYYYMMDD)
-        ts = e.get("timestamp")
-        upload_date = e.get("upload_date")
-        if ts is not None:
-            if ts < since_ts:
+        if not no_date_filter:
+            # Filter by date: prefer unix timestamp, fall back to upload_date string (YYYYMMDD)
+            ts = e.get("timestamp")
+            upload_date = e.get("upload_date")
+            if ts is not None:
+                if ts < since_ts:
+                    continue
+            elif upload_date:
+                if upload_date < since_str:
+                    continue
+            else:
+                # No date info — skip to avoid false positives
                 continue
-        elif upload_date:
-            if upload_date < since_str:
-                continue
-        else:
-            # No date info — skip to avoid false positives
-            continue
 
         filtered.append(e)
 
     print(
-        f"[scan_channel] {len(entries)} raw entries → {len(filtered)} within 24h for {channel_url}",
+        f"[scan_channel] {len(entries)} raw entries → {len(filtered)} {'within 24h' if not no_date_filter else 'total'} for {channel_url}",
         flush=True,
     )
     return filtered
